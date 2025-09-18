@@ -50,13 +50,13 @@ int main(void) {
         wait(NULL); // wait for child
     }
 
-   /* printf("\n=== TEST: DELETE ===\n");
+   printf("\n=== TEST: DELETE ===\n");
     if (sshm_delete(name, magic) == -1) {
         perror("sshm_delete failed");
         return 1;
     }
     printf("Shared memory & semaphore deleted.\n");
     return 0;
-*/
+
 }
 
