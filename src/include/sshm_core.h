@@ -17,15 +17,14 @@ typedef struct {
     uint32_t VERSION;
     size_t SIZE;
     size_t USED_SIZE;
+    char SEM_NAME[256];
+    char SEG_NAME[256];
 } sshm_meta_t;
 
-struct stat st;
+extern struct stat st;
 
-sshm_meta_t DEFAULTS = (sshm_meta_t) {
-    .MAGIC = 0xDEADBEEF,
-    .VERSION = 1,
-    .USED_SIZE = 0
-};
+extern sshm_meta_t DEFAULTS;
+
 
 
 int sshm_create(const char *name, int oflags, mode_t mode, size_t size);
@@ -34,4 +33,5 @@ ssize_t sshm_write(const char *name, uint32_t magic, const void *data, size_t le
 ssize_t sshm_read(const char *name, uint32_t magic, void *buffer, size_t buf_len);
 int sshm_delete(const char *name, uint32_t magic);
 int sshm_inspect(const char *name, uint32_t magic);
+
 #endif

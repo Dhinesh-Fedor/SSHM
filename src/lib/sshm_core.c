@@ -1,10 +1,18 @@
 #include "../include/sshm_core.h"
+#include "../include/sshm_sync.h"
 
+sshm_meta_t DEFAULTS = (sshm_meta_t) {
+    .MAGIC = 0xDEADBEEF,
+    .VERSION = 1,
+    .USED_SIZE = 0
+};
 
+struct stat st;
 
 int sshm_create(const char *name, int oflags, mode_t mode, size_t size) {
-    int shm_fd;
     size_t meta_size = sizeof(sshm_meta_t);
+    int shm_fd;
+    const char *seg_name = name+1;
 
     shm_fd = shm_open(name, oflags, mode);
     if (shm_fd == -1) {
@@ -39,19 +47,25 @@ int sshm_create(const char *name, int oflags, mode_t mode, size_t size) {
     addr->MAGIC = DEFAULTS.MAGIC;
     addr->VERSION = DEFAULTS.VERSION;
     addr->USED_SIZE = DEFAULTS.USED_SIZE;
+    strcpy(addr->SEG_NAME,seg_name);
+    snprintf(addr->SEM_NAME, sizeof(addr->SEM_NAME), "sem_sshm_%s", seg_name);
+
 
     printf("Shared Memory Created Successfully!\n");
-    
+
+
+    sshm_sem_create(addr->SEM_NAME, O_CREAT | O_EXCL, mode, 1);
 
     printf("=== Shared Memory Metadata ===\n");
     printf("Magic   : 0x%X\n", addr->MAGIC);
     printf("Version : %u\n", addr->VERSION);
+    printf("Seg_Name: %s\n",addr->SEG_NAME);
+    printf("Sem_Name: %s\n",addr->SEM_NAME);
     printf("Size    : %zu bytes\n", addr->SIZE);
     printf("==============================\n");
     
     munmap(shm_map,st.st_size);
     close(shm_fd);
-
     return shm_fd;
 }
 
@@ -92,10 +106,13 @@ int sshm_o_exist(const char *name, uint32_t magic) {
 
     printf("Shared Memory Opened Successfully!\n");
     
+    sshm_sem_open(addr->SEM_NAME);
 
     printf("=== Shared Memory Metadata ===\n");
     printf("Magic   : 0x%X\n", addr->MAGIC);
     printf("Version : %u\n", addr->VERSION);
+    printf("Seg_Name: %s\n",addr->SEG_NAME);
+    printf("Sem_Name: %s\n",addr->SEM_NAME);
     printf("Size    : %zu bytes\n", addr->SIZE);
     printf("Used    : %zu bytes\n", addr->USED_SIZE);
     printf("==============================\n");
@@ -143,6 +160,8 @@ ssize_t sshm_write(const char *name, uint32_t magic, const void *data, size_t le
     }
 
     printf("Shared Memory Opened Successfully!\n");
+
+    sshm_sem_lock(addr->SEM_NAME);
  
     size_t remaining = addr->SIZE - addr->USED_SIZE;
 
@@ -160,6 +179,8 @@ ssize_t sshm_write(const char *name, uint32_t magic, const void *data, size_t le
     addr->USED_SIZE += len;
 
     printf("Data written into the Memory Segment Successfully!\n");
+
+    sshm_sem_unlock(addr->SEM_NAME);
     
     munmap(shm_map,st.st_size);
     close(shm_fd);
@@ -206,6 +227,8 @@ ssize_t sshm_read(const char* name, uint32_t magic, void *buffer, size_t buf_len
 
     printf("Shared Memory Opened Successfully!\n");
 
+    sshm_sem_lock(addr->SEM_NAME);
+
     void *u_space = (char *) addr + sizeof(sshm_meta_t);
 
     size_t copy_size = addr->USED_SIZE;
@@ -224,10 +247,10 @@ ssize_t sshm_read(const char* name, uint32_t magic, void *buffer, size_t buf_len
 
     printf("\nREAD SUCCESSFULL!");
 
+    sshm_sem_unlock(addr->SEM_NAME);
+
     munmap(shm_map,st.st_size);
     close(shm_fd);
-
-
 
     return copy_size;
 }
@@ -263,6 +286,8 @@ int sshm_delete(const char *name, uint32_t magic) {
         return -1;
         exit(EXIT_FAILURE);
     }
+
+    sshm_sem_delete(addr->SEM_NAME);
     
     int del = shm_unlink(name);
     if ( del == -1) {
@@ -316,12 +341,15 @@ int sshm_inspect(const char *name, uint32_t magic) {
         exit(EXIT_FAILURE);
     }
 
+
     printf("Shared Memory Opened Successfully!\n");
     
 
     printf("=== Shared Memory Metadata ===\n");
     printf("Magic   : 0x%X\n", addr->MAGIC);
     printf("Version : %u\n", addr->VERSION);
+    printf("Seg_Name: %s\n",addr->SEG_NAME);
+    printf("Sem_Name: %s\n",addr->SEM_NAME);
     printf("Size    : %zu bytes\n", addr->SIZE);
     printf("Used    : %zu bytes\n", addr->USED_SIZE);
     printf("==============================\n");
