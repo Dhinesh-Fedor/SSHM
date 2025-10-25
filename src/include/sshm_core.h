@@ -21,9 +21,18 @@ typedef struct {
     char SEG_NAME[256];
 } sshm_meta_t;
 
+typedef struct {
+    char SEG_NAME[256];
+    uint8_t KEY[32];
+    size_t SIZE;
+    size_t USED_SIZE;
+} sshm_meta_local_t;
+
 extern struct stat st;
 
 extern sshm_meta_t DEFAULTS;
+
+
 
 
 
